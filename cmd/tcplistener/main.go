@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"net"
 )
 
@@ -21,7 +22,7 @@ func getLinesChannel(f io.ReadCloser) <-chan string {
 				break // End of file, break the loop
 			}
 			if err != nil {
-				panic("upsi")
+				log.Fatal(err)
 			}
 
 			buf = buf[:n]
@@ -35,6 +36,7 @@ func getLinesChannel(f io.ReadCloser) <-chan string {
 			line += string(buf)
 
 		}
+		strings <- line
 	}()
 	return strings
 
