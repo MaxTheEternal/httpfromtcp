@@ -3,7 +3,6 @@ package request
 import (
 	"errors"
 	"io"
-	"log"
 	"strings"
 	"unicode"
 )
@@ -31,7 +30,7 @@ type RequestLine struct {
 }
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
-	buf := make([]byte, 0, BUFFERSIZE)
+	buf := make([]byte, BUFFERSIZE)
 	// localBufferSize := BUFFERSIZE
 	bufLen := 0
 	req := NewRequest()
@@ -48,18 +47,17 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 			break // End of file, break the loop
 		}
 		if err != nil {
-			log.Fatal(err)
+			return nil, err
 		}
 		bufLen += n
 
-		parsed, err := req.parse(buf)
+		parsed, err := req.parse(buf[:bufLen])
 		if err != nil {
-			log.Fatal(err)
+			return nil, err
 		}
 
 		copy(buf, buf[parsed:bufLen])
 		bufLen -= parsed
-
 	}
 	return req, nil
 }
@@ -71,20 +69,28 @@ func NewRequest() *Request {
 }
 
 func (r *Request) parse(data []byte) (int, error) {
-	if r.state == StateDone {
-		return 0, errors.New("trying to parse read stuff")
-	}
-	req, read, err := parseRequestLine(string(data))
-	if err != nil {
-		return 0, err
-	}
+	read := 0
+outer:
+	for {
+		switch r.state {
+		case StateDone:
+			break outer
+		case StateInit:
+			rl, n, err := parseRequestLine(string(data[read:]))
+			if err != nil {
+				r.state = StateDone
+				return 0, err
+			}
 
-	if read == 0 {
-		return 0, nil
-	}
+			if n == 0 {
+				break outer
+			}
 
-	r.state = StateDone
-	r.RequestLine = *req
+			r.RequestLine = *rl
+			read += n
+			r.state = StateDone
+		}
+	}
 	return read, nil
 }
 
