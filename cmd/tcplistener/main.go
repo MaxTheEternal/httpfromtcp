@@ -1,46 +1,13 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"log"
 	"net"
+
+	"github.com/MaxTheEternal/httpfromtcp/internal/request"
 )
 
-func getLinesChannel(f io.ReadCloser) <-chan string {
-	line := ""
-	strings := make(chan string)
-	go func() {
-		defer f.Close()
-		defer close(strings)
-		for {
-			buf := make([]byte, 8)
-			n, err := f.Read(buf)
-
-			if err == io.EOF {
-				break // End of file, break the loop
-			}
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			buf = buf[:n]
-			if i := bytes.IndexByte(buf, '\n'); i != -1 {
-				line += string(buf[:i])
-				buf = buf[i+1:]
-				strings <- line
-				line = ""
-			}
-
-			line += string(buf)
-
-		}
-		strings <- line
-	}()
-	return strings
-
-}
 func main() {
 	listener, err := net.Listen("tcp", ":42069")
 	if err != nil {
@@ -55,9 +22,12 @@ func main() {
 		}
 
 		fmt.Println("Connected")
-		for str := range getLinesChannel(con) {
-			fmt.Printf("read: %s\n", str)
-		}
-	}
 
+		req, err := request.RequestFromReader(con)
+		if err != nil {
+			log.Fatal(err)
+		}
+		rl := req.RequestLine
+		fmt.Printf("Request Line:\n- Method: %s\n- Target: %s\n- Version: %s\n", rl.Method, rl.RequestTarget, rl.HttpVersion)
+	}
 }
