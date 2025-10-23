@@ -3,14 +3,27 @@ package headers
 import (
 	"bytes"
 	"fmt"
+	"strings"
 )
 
-type Headers map[string]string
+type Headers struct {
+	Headers map[string]string
+}
 
 var COULDNT_PARSE_HEADERS = fmt.Errorf("couldnt parse header line")
 
 func NewHeaders() Headers {
-	return make(Headers)
+	return Headers{
+		Headers: map[string]string{},
+	}
+}
+
+func (h Headers) Get(key string) string {
+	return h.Headers[strings.ToLower(key)]
+}
+
+func (h Headers) Set(key string, value string) {
+	h.Headers[strings.ToLower(key)] = value
 }
 
 func (h Headers) Parse(data []byte) (int, bool, error) {
@@ -41,9 +54,41 @@ func (h Headers) Parse(data []byte) (int, bool, error) {
 		name = bytes.TrimSpace(name)
 		value = bytes.TrimSpace(value)
 
-		h[string(name)] = string(value)
+		valid := validKeyToken(name)
+		if valid != nil {
+			return readBytes, false, valid
+		}
+
+		h.Set(string(name), string(value))
 		readBytes += idx + 2
 
 	}
 	return readBytes, done, nil
+}
+
+func validKeyToken(key []byte) error {
+	if len(key) < 1 {
+		return fmt.Errorf("FieldName cant be smaller than 1 Char")
+	}
+	for _, ch := range key {
+		found := false
+		if ch >= 'a' && ch <= 'z' {
+			found = true
+		}
+		if ch >= 'A' && ch <= 'Z' {
+			found = true
+		}
+		if ch >= '0' && ch <= '9' {
+			found = true
+		}
+		switch ch {
+		case '!', '#', '$', '%', '&', '\'', '*', '+', '-', '.', '^', '_', '`', '|', '~':
+			found = true
+		}
+
+		if !found {
+			return fmt.Errorf("invalid Token in Key")
+		}
+	}
+	return nil
 }
