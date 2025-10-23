@@ -23,7 +23,14 @@ func (h Headers) Get(key string) string {
 }
 
 func (h Headers) Set(key string, value string) {
-	h.Headers[strings.ToLower(key)] = value
+	lowerKey := strings.ToLower(key)
+
+	if v, ok := h.Headers[lowerKey]; !ok {
+		h.Headers[lowerKey] = value
+	} else {
+		h.Headers[lowerKey] = v + ", " + value
+	}
+	fmt.Printf("Added value: %s\n", value)
 }
 
 func (h Headers) Parse(data []byte) (int, bool, error) {
@@ -31,7 +38,6 @@ func (h Headers) Parse(data []byte) (int, bool, error) {
 	done := false
 
 	for {
-		data = data[readBytes:]
 		idx := bytes.Index(data, []byte("\r\n"))
 		if idx == -1 {
 			break
@@ -61,6 +67,7 @@ func (h Headers) Parse(data []byte) (int, bool, error) {
 
 		h.Set(string(name), string(value))
 		readBytes += idx + 2
+		data = data[idx+2:]
 
 	}
 	return readBytes, done, nil
