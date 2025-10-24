@@ -29,5 +29,10 @@ func main() {
 		}
 		rl := req.RequestLine
 		fmt.Printf("Request Line:\n- Method: %s\n- Target: %s\n- Version: %s\n", rl.Method, rl.RequestTarget, rl.HttpVersion)
+		fmt.Printf("Headers:\n")
+
+		for k, v := range req.Headers.Headers {
+			fmt.Printf("- %s: %s", k, v)
+		}
 	}
 }
