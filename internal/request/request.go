@@ -5,6 +5,8 @@ import (
 	"io"
 	"strings"
 	"unicode"
+
+	"github.com/MaxTheEternal/httpfromtcp/internal/headers"
 )
 
 var SEPERATOR = "\r\n"
@@ -12,14 +14,16 @@ var SEPERATOR = "\r\n"
 type parserState int
 
 const (
-	StateInit parserState = 0
-	StateDone parserState = 1
+	StateInit parserState = iota
+	StateDone
+	StateParsingHeaders
 )
 
 const BUFFERSIZE = 1028
 
 type Request struct {
 	RequestLine RequestLine
+	Headers     *headers.Headers
 	state       parserState
 }
 
@@ -27,6 +31,13 @@ type RequestLine struct {
 	HttpVersion   string
 	RequestTarget string
 	Method        string
+}
+
+func NewRequest() *Request {
+	return &Request{
+		state:   StateInit,
+		Headers: headers.NewHeaders(),
+	}
 }
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
@@ -62,12 +73,6 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	return req, nil
 }
 
-func NewRequest() *Request {
-	return &Request{
-		state: StateInit,
-	}
-}
-
 func (r *Request) parse(data []byte) (int, error) {
 	read := 0
 outer:
@@ -87,8 +92,22 @@ outer:
 			}
 
 			r.RequestLine = *rl
+			read += n + 2
+			r.state = StateParsingHeaders
+		case StateParsingHeaders:
+			n, done, err := r.Headers.Parse(data[read:])
+			if err != nil {
+				return 0, err
+			}
+			if n == 0 {
+				break outer
+			}
+
 			read += n
-			r.state = StateDone
+			if done {
+				r.state = StateDone
+			}
+
 		}
 	}
 	return read, nil

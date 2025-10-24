@@ -12,17 +12,18 @@ type Headers struct {
 
 var COULDNT_PARSE_HEADERS = fmt.Errorf("couldnt parse header line")
 
-func NewHeaders() Headers {
-	return Headers{
+func NewHeaders() *Headers {
+	return &Headers{
 		Headers: map[string]string{},
 	}
 }
 
-func (h Headers) Get(key string) string {
+func (h *Headers) Get(key string) string {
+	fmt.Printf("Gettig value for key: %s\n", key)
 	return h.Headers[strings.ToLower(key)]
 }
 
-func (h Headers) Set(key string, value string) {
+func (h *Headers) Set(key string, value string) {
 	lowerKey := strings.ToLower(key)
 
 	if v, ok := h.Headers[lowerKey]; !ok {
@@ -33,7 +34,7 @@ func (h Headers) Set(key string, value string) {
 	fmt.Printf("Added value: %s\n", value)
 }
 
-func (h Headers) Parse(data []byte) (int, bool, error) {
+func (h *Headers) Parse(data []byte) (int, bool, error) {
 	readBytes := 0
 	done := false
 
@@ -49,8 +50,11 @@ func (h Headers) Parse(data []byte) (int, bool, error) {
 		}
 
 		headerLine := data[:idx]
+		fmt.Printf("Parsing headerLine: [%s]\n", string(headerLine))
+
 		name, value, found := bytes.Cut(headerLine, []byte(":"))
 		if !found {
+			fmt.Printf("No colon found in headerLine: [%s]\n", string(headerLine))
 			return readBytes, false, COULDNT_PARSE_HEADERS
 		}
 
